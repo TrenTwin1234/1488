@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=yes, maximum-scale=1.0">
+    <title>ForceTracker — GymShark Training</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background: linear-gradient(145deg, #0b2f2e 0%, #1e3a36 100%);
+            background-attachment: fixed;
+            font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+            padding: 16px 12px 70px;
+            color: #e4f9f5;
+            min-height: 100vh;
+            font-weight: 500;
+            line-height: 1.4;
+            text-rendering: optimizeLegibility;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        /* Анимации */
+        @keyframes titleGlow {
+            0% { background-position: 0% 50%; opacity: 0.9; }
+            100% { background-position: 100% 50%; opacity: 1; }
+        }
+
+        @keyframes fadeInDown {
+            from { opacity: 0; transform: translateY(-12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes pulseGreen {
+            0% { transform: scale(0.96); opacity: 0.7; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        @keyframes explodeBoom {
+            0% { transform: scale(1); background: #2d4a47; box-shadow: 0 0 0 0 #30e3ca; }
+            30% { transform: scale(1.12); background: #30e3ca; box-shadow: 0 0 0 10px #30e3ca80; }
+            60% { transform: scale(0.98); background: #11999e; }
+            100% { transform: scale(1); background: linear-gradient(145deg, #11999e, #30e3ca); box-shadow: 0 0 0 0 #30e3ca; }
+        }
+
+        @keyframes megaExplode {
+            0% { transform: scale(1); background: rgba(64,81,78,0.55); box-shadow: 0 0 0 0 #30e3ca; }
+            25% { transform: scale(1.02); background: #30e3ca80; box-shadow: 0 0 0 20px #30e3ca; }
+            50% { transform: scale(0.99); background: #11999e; box-shadow: 0 0 0 40px #30e3ca00; }
+            100% { transform: scale(1); background: rgba(64,81,78,0.55); box-shadow: 0 0 0 0 #30e3ca; }
+        }
+
+        @keyframes particleFly {
+            0% { opacity: 1; transform: translate(0, 0) scale(1); background: #30e3ca; }
+            50% { opacity: 0.9; background: #e4f9f5; }
+            100% { opacity: 0; transform: translate(var(--tx, 60px), var(--ty, -60px)) scale(0); background: #11999e; }
+        }
+
+        .top {
+            text-align: center;
+            margin-bottom: 20px;
+            animation: fadeInDown 0.5s ease-out;
+        }
+        .top h1 {
+            font-size: 2rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #30e3ca, #11999e, #e4f9f5);
+            background-size: 200% auto;
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+            letter-spacing: -0.5px;
+            animation: titleGlow 3s ease infinite alternate;
+        }
+        .sub {
+            font-size: 0.65rem;
+            color: #e4f9f5cc;
+            margin-top: 6px;
+            background: rgba(17, 153, 158, 0.3);
+            display: inline-block;
+            padding: 4px 14px;
+            border-radius: 40px;
+            backdrop-filter: blur(8px);
+            border: 1px solid #30e3ca60;
+            font-weight: 500;
+        }
+
+        /* Дни недели (табы) - оптимизировано для телефона */
+        .days {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .day-btn {
+            background: #2c4b47;
+            border: 1px solid #30e3ca40;
+            padding: 10px 16px;
+            border-radius: 60px;
+            font-weight: 650;
+            font-size: 0.8rem;
+            color: #e4f9f5;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: inherit;
+            backdrop-filter: blur(4px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            letter-spacing: -0.2px;
+            flex: 0 1 auto;
+            text-align: center;
+            touch-action: manipulation;
+        }
+        .day-btn.active {
+            background: linear-gradient(105deg, #11999e, #30e3ca);
+            border-color: #e4f9f5;
+            color: #0a2c29;
+            transform: scale(1.02) translateY(-2px);
+            box-shadow: 0 8px 16px -4px #30e3ca80;
+            font-weight: 800;
+        }
+        .day-btn:active { transform: scale(0.96); transition: 0.05s; }
+
+        /* Прогресс панель */
+        .progress-panel {
+            background: rgba(44, 75, 71, 0.85);
+            backdrop-filter: blur(12px);
+            border-radius: 60px;
+            padding: 10px 18px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            border: 1px solid #30e3ca80;
+            box-shadow: 0 8px 18px rgba(0,0,0,0.2);
+        }
+        .progress-text {
+            font-weight: 600;
+            background: #1e3a36cc;
+            padding: 6px 16px;
+            border-radius: 40px;
+            font-size: 0.8rem;
+            color: #e4f9f5;
+            letter-spacing: -0.2px;
+            font-feature-settings: "tnum";
+        }
+        .progress-text span {
+            font-weight: 800;
+            font-size: 1.3rem;
+            color: #30e3ca;
+            margin: 0 4px;
+            text-shadow: 0 0 6px #11999e;
+        }
+        .reset {
+            background: #2c4b47;
+            border: 1px solid #30e3ca80;
+            padding: 6px 20px;
+            border-radius: 40px;
+            color: #30e3ca;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.75rem;
+            font-family: inherit;
+            touch-action: manipulation;
+        }
+        .reset:active { transform: scale(0.96); background: #30e3ca; color: #1e3a36; }
+
+        /* Группы мышц */
+        .muscle-group {
+            background: rgba(44, 75, 71, 0.6);
+            backdrop-filter: blur(8px);
+            border-radius: 24px;
+            margin-bottom: 16px;
+            border: 1px solid #30e3ca60;
+            overflow: hidden;
+            transition: all 0.25s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+            box-shadow: 0 8px 16px -10px rgba(0,0,0,0.4);
+        }
+        .group-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 14px 16px;
+            background: rgba(17, 153, 158, 0.25);
+            cursor: pointer;
+            transition: background 0.2s;
+            font-weight: 700;
+            font-size: 1rem;
+            letter-spacing: -0.2px;
+            color: #e4f9f5;
+            touch-action: manipulation;
+        }
+        .group-header:active {
+            background: #30e3ca30;
+            transform: scale(0.99);
+        }
+        .group-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            flex: 1;
+        }
+        .group-badge {
+            background: #11999e40;
+            border: 1px solid #30e3ca80;
+            padding: 3px 10px;
+            border-radius: 40px;
+            font-size: 0.6rem;
+            font-weight: 700;
+            color: #30e3ca;
+        }
+        .group-progress {
+            background: #2c4b47;
+            padding: 3px 10px;
+            border-radius: 40px;
+            font-size: 0.6rem;
+            font-weight: 700;
+            color: #30e3ca;
+            transition: all 0.2s;
+        }
+        .group-progress.completed {
+            background: #11999e;
+            color: #e4f9f5;
+            box-shadow: 0 0 6px #30e3caaa;
+            animation: pulseGreen 0.5s ease;
+        }
+        .group-arrow {
+            font-size: 0.9rem;
+            transition: transform 0.35s cubic-bezier(0.2, 0.9, 0.4, 1.2);
+            color: #30e3ca;
+            margin-left: 8px;
+        }
+        .group-header.collapsed .group-arrow {
+            transform: rotate(-90deg);
+        }
+        .exercises-container {
+            overflow: hidden;
+            transition: max-height 0.55s cubic-bezier(0.33, 1, 0.68, 1), padding 0.4s ease;
+            max-height: 3000px;
+            padding: 10px 12px 18px 12px;
+        }
+        .group-header.collapsed + .exercises-container {
+            max-height: 0 !important;
+            padding-top: 0;
+            padding-bottom: 0;
+        }
+
+        /* Карточки упражнений */
+        .ex-card {
+            background: #2c4b47cc;
+            border-radius: 20px;
+            margin-bottom: 14px;
+            padding: 14px;
+            border: 1px solid #30e3ca60;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
+        .ex-card.completed {
+            background: #11999e60;
+            border-left: 5px solid #30e3ca;
+            box-shadow: 0 6px 14px -5px #30e3ca80;
+        }
+        .ex-title {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            flex-wrap: wrap;
+            margin-bottom: 12px;
+            gap: 8px;
+        }
+        .ex-title h3 {
+            font-size: 0.95rem;
+            font-weight: 800;
+            letter-spacing: -0.3px;
+            color: #e4f9f5;
+        }
+        .muscle-badge {
+            background: #11999e;
+            padding: 3px 10px;
+            border-radius: 40px;
+            font-size: 0.55rem;
+            font-weight: 700;
+            color: #e4f9f5;
+        }
+
+        /* Сетка подходов - адаптивная для телефона */
+        .sets-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+        .set-tile {
+            background: #1e3a36;
+            border-radius: 18px;
+            padding: 8px 4px;
+            flex: 1 1 75px;
+            min-width: 70px;
+            text-align: center;
+            transition: all 0.2s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+            border: 1px solid #30e3ca80;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+            user-select: none;
+            backdrop-filter: blur(2px);
+            touch-action: manipulation;
+        }
+        .set-tile:active { transform: scale(0.96); }
+        .set-tile.active-tile {
+            background: linear-gradient(145deg, #11999e, #30e3ca);
+            border-color: #e4f9f5;
+            transform: scale(1.02);
+            box-shadow: 0 5px 12px #30e3ca80;
+        }
+        .set-number {
+            font-size: 0.75rem;
+            font-weight: 800;
+            background: #2c4b47;
+            width: 44px;
+            padding: 3px 0;
+            border-radius: 40px;
+            color: #30e3ca;
+        }
+        .set-tile.active-tile .set-number {
+            background: #e4f9f5;
+            color: #1e3a36;
+        }
+        .set-stats {
+            font-size: 0.55rem;
+            font-weight: 600;
+            color: #c6efea;
+        }
+        .check-symbol {
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+        .full-mark {
+            width: 100%;
+            background: #1e3a36;
+            border: 1px solid #30e3ca80;
+            padding: 9px 0;
+            border-radius: 50px;
+            font-weight: 700;
+            color: #e4f9f5;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            font-size: 0.7rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-top: 6px;
+            touch-action: manipulation;
+        }
+        .full-mark:active {
+            transform: scale(0.97);
+            background: #30e3ca;
+            color: #1e2f2c;
+        }
+
+        .footer {
+            text-align: center;
+            font-size: 0.6rem;
+            margin-top: 28px;
+            color: #30e3ca;
+            background: rgba(44, 75, 71, 0.6);
+            padding: 10px 12px;
+            border-radius: 24px;
+            backdrop-filter: blur(5px);
+        }
+        .particle {
+            position: fixed;
+            pointer-events: none;
+            z-index: 10000;
+            width: 7px;
+            height: 7px;
+            background: #30e3ca;
+            border-radius: 2px;
+            animation: particleFly 0.7s ease-out forwards;
+        }
+        .particle-mega {
+            width: 11px;
+            height: 11px;
+            border-radius: 3px;
+            animation: particleFly 0.8s ease-out forwards;
+        }
+        .set-tile.explode-animation {
+            animation: explodeBoom 0.45s cubic-bezier(0.34, 1.2, 0.64, 1) forwards;
+        }
+        .muscle-group.mega-explode {
+            animation: megaExplode 0.6s cubic-bezier(0.34, 1.2, 0.64, 1) forwards;
+            z-index: 200;
+            position: relative;
+        }
+        
+        /* Специальные улучшения для очень маленьких экранов */
+        @media (max-width: 450px) {
+            body { padding: 12px 10px 60px; }
+            .set-tile { min-width: 62px; padding: 6px 3px; }
+            .set-number { width: 38px; font-size: 0.65rem; }
+            .ex-title h3 { font-size: 0.85rem; }
+            .group-header { padding: 12px 14px; font-size: 0.9rem; }
+            .day-btn { padding: 8px 12px; font-size: 0.7rem; }
+            .progress-text span { font-size: 1.2rem; }
+            .progress-text { font-size: 0.7rem; padding: 4px 12px; }
+            .reset { padding: 5px 16px; font-size: 0.7rem; }
+        }
+        
+        /* Отключаем анимации при предпочтении reduced motion */
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="top">
+        <h1>⚡ GYMSHARK</h1>
+        <div class="sub">FORCE TRACKER · МОЩЬ И АНИМАЦИЯ</div>
+    </div>
+
+    <div class="days">
+        <button class="day-btn" data-day="mon">💪 ПН · Грудь/Руки/Спина</button>
+        <button class="day-btn" data-day="wed">🔥 СР · Плечи/Трапеция/Предплечья</button>
+        <button class="day-btn" data-day="fri">🏆 ПТ · Грудь/Руки/Спина</button>
+    </div>
+
+    <div class="progress-panel">
+        <div class="progress-text">🏋️ ПОДХОДОВ: <span id="completedCount">0</span> / <span id="totalCount">0</span></div>
+        <button class="reset" id="resetDayBtn">⟳ СБРОС ДНЯ</button>
+    </div>
+
+    <div id="workoutContainer"></div>
+    <div class="footer">✅ Нажми на подход — анимация взрыва! Заверши всю группу — супер взрыв и схлопывание 💥</div>
+</div>
+
+<script>
+    // ---------- ПРОГРАММЫ ----------
+    const MON_PROGRAM_RAW = [
+        { name: "Сгибание рук под наклоном", muscle: "Бицепс", sets: 5, desc: "до отказа" },
+        { name: "Молотки (поочередно)", muscle: "Бицепс", sets: 5, desc: "90% усилий" },
+        { name: "V-образный гриф (21 метод)", muscle: "Бицепс", sets: 3, desc: "21 повтор" },
+        { name: "Разгибание рук в тренажёре", muscle: "Трицепс", sets: 5, desc: "до отказа" },
+        { name: "Разгибание рук из-за головы", muscle: "Трицепс", sets: 5, desc: "максимум" },
+        { name: "Жим лёжа 5х5", muscle: "Грудные", sets: 5, desc: "90% 1ПМ" },
+        { name: "Жим под наклоном 5х5", muscle: "Грудные", sets: 5, desc: "5 повторов" },
+        { name: "Бабочка (сведение)", muscle: "Грудные", sets: 5, desc: "отказ" },
+        { name: "Разведение в смите (низ груди)", muscle: "Грудные", sets: 3, desc: "жёстко" },
+        { name: "Тяга верхнего блока", muscle: "Спина", sets: 5, desc: "90%" },
+        { name: "Тяга Т-образного грифа", muscle: "Спина", sets: 5, desc: "до отказа" },
+        { name: "Тяга горизонтального блока (узко)", muscle: "Спина", sets: 5, desc: "контроль" },
+        { name: "Тяга верхнего блока (длинная рукоять)", muscle: "Спина", sets: 5, desc: "пик" }
+    ];
+
+    const WED_PROGRAM_RAW = [
+        { name: "Махи гантелями в стороны", muscle: "Плечи (боковые)", sets: 5, desc: "до отказа" },
+        { name: "Махи гантелями вперёд", muscle: "Плечи (передние)", sets: 5, desc: "90%" },
+        { name: "Тяга гантелей вверх (шраги)", muscle: "Трапеция", sets: 5, desc: "пик сокращение" },
+        { name: "Тяга гантелей на себя (запястья)", muscle: "Предплечья", sets: 5, desc: "жёстко" },
+        { name: "Мотоцикл (кисти с грифом)", muscle: "Предплечья", sets: 5, desc: "выносливость" }
+    ];
+
+    const FRI_PROGRAM_RAW = [...MON_PROGRAM_RAW];
+    const DATA_RAW = { mon: MON_PROGRAM_RAW, wed: WED_PROGRAM_RAW, fri: FRI_PROGRAM_RAW };
+
+    function groupByMuscle(programArray) {
+        const groups = new Map();
+        for (let idx = 0; idx < programArray.length; idx++) {
+            const ex = programArray[idx];
+            const muscle = ex.muscle;
+            if (!groups.has(muscle)) groups.set(muscle, { exercises: [] });
+            groups.get(muscle).exercises.push({ ...ex, originalIndex: idx });
+        }
+        const grouped = [];
+        for (let [muscleName, data] of groups.entries()) {
+            grouped.push({ muscle: muscleName, exercises: data.exercises });
+        }
+        return grouped;
+    }
+
+    let groupedCache = { mon: null, wed: null, fri: null };
+    function getGrouped(day) {
+        if (!groupedCache[day]) groupedCache[day] = groupByMuscle(DATA_RAW[day]);
+        return groupedCache[day];
+    }
+
+    let currentDay = "mon";
+    let completedMap = new Map();
+    let expandedGroups = { mon: {}, wed: {}, fri: {} };
+    const STORAGE_KEY = "gymshark_force_mobile_v3";
+
+    function save() {
+        const obj = { 
+            day: currentDay, 
+            map: Object.fromEntries(completedMap), 
+            expanded: expandedGroups 
+        };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(obj));
+    }
+
+    function load() {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) {
+            for (let d of ['mon','wed','fri']) {
+                if (!expandedGroups[d]) expandedGroups[d] = {};
+                const grps = getGrouped(d);
+                for (let g of grps) expandedGroups[d][g.muscle] = true;
+            }
+            return;
+        }
+        try {
+            const data = JSON.parse(raw);
+            if (data.day === "mon" || data.day === "wed" || data.day === "fri") currentDay = data.day;
+            if (data.map) {
+                completedMap.clear();
+                for (const [k, v] of Object.entries(data.map)) if (v === true) completedMap.set(k, true);
+            }
+            if (data.expanded) {
+                expandedGroups = data.expanded;
+                for (let d of ['mon','wed','fri']) if (!expandedGroups[d]) expandedGroups[d] = {};
+            } else {
+                for (let d of ['mon','wed','fri']) {
+                    expandedGroups[d] = {};
+                    const grps = getGrouped(d);
+                    for (let g of grps) expandedGroups[d][g.muscle] = true;
+                }
+            }
+        } catch(e) { console.warn(e); }
+    }
+
+    function makeKey(exIdx, setIdx) { return `${currentDay}_${exIdx}_${setIdx}`; }
+    function totalSets() { return DATA_RAW[currentDay].reduce((s, ex) => s + ex.sets, 0); }
+    function getCompletedCountForCurrentDay() {
+        let cnt = 0;
+        const prefix = `${currentDay}_`;
+        for (let key of completedMap.keys()) if (key.startsWith(prefix) && completedMap.get(key) === true) cnt++;
+        return cnt;
+    }
+    function isExerciseCompleted(exGlobalIdx) {
+        const ex = DATA_RAW[currentDay][exGlobalIdx];
+        if (!ex) return false;
+        for (let s = 0; s < ex.sets; s++) if (!completedMap.get(makeKey(exGlobalIdx, s))) return false;
+        return true;
+    }
+    function isGroupFullyCompleted(group) {
+        for (let exItem of group.exercises) if (!isExerciseCompleted(exItem.originalIndex)) return false;
+        return true;
+    }
+
+    function createExplosionParticles(x, y, isMega = false) {
+        const count = isMega ? 42 : 16;
+        for (let i = 0; i < count; i++) {
+            const particle = document.createElement('div');
+            particle.className = isMega ? 'particle particle-mega' : 'particle';
+            const angle = (i / count) * Math.PI * 2 + Math.random() * 0.6;
+            const distance = (isMega ? 80 : 50) + Math.random() * (isMega ? 60 : 30);
+            const tx = Math.cos(angle) * distance * (0.5 + Math.random() * 0.8);
+            const ty = Math.sin(angle) * distance * (0.5 + Math.random() * 0.8);
+            particle.style.setProperty('--tx', tx + 'px');
+            particle.style.setProperty('--ty', ty + 'px');
+            particle.style.left = (x - 5) + 'px';
+            particle.style.top = (y - 5) + 'px';
+            particle.style.background = `hsl(165, 85%, 58%)`;
+            document.body.appendChild(particle);
+            setTimeout(() => particle.remove(), 700);
+        }
+        if (isMega && navigator.vibrate) navigator.vibrate(40);
+    }
+
+    function animateExplosion(element, isActivating) {
+        if (!element || !isActivating) return;
+        element.classList.remove('explode-animation');
+        void element.offsetHeight;
+        element.classList.add('explode-animation');
+        const rect = element.getBoundingClientRect();
+        if (rect.width > 0) createExplosionParticles(rect.left + rect.width/2, rect.top + rect.height/2, false);
+        setTimeout(() => element.classList.remove('explode-animation'), 460);
+    }
+
+    function triggerMegaExplosionAndCollapse(groupElement, muscleName) {
+        if (!groupElement) return;
+        groupElement.classList.remove('mega-explode');
+        void groupElement.offsetHeight;
+        groupElement.classList.add('mega-explode');
+        const rect = groupElement.getBoundingClientRect();
+        createExplosionParticles(rect.left + rect.width/2, rect.top + rect.height/2, true);
+        setTimeout(() => {
+            if (expandedGroups[currentDay] && expandedGroups[currentDay][muscleName] !== false) {
+                expandedGroups[currentDay][muscleName] = false;
+                save();
+                const groupHeader = groupElement.querySelector('.group-header');
+                if (groupHeader && !groupHeader.classList.contains('collapsed')) {
+                    groupHeader.classList.add('collapsed');
+                }
+                setTimeout(() => {
+                    groupElement.classList.remove('mega-explode');
+                }, 520);
+            } else {
+                setTimeout(() => groupElement.classList.remove('mega-explode'), 400);
+            }
+        }, 320);
+    }
+
+    function toggleSet(exIdx, setIdx, isChecked) {
+        const key = makeKey(exIdx, setIdx);
+        if (isChecked) completedMap.set(key, true);
+        else completedMap.delete(key);
+        
+        const ex = DATA_RAW[currentDay][exIdx];
+        const muscleName = ex.muscle;
+        const grouped = getGrouped(currentDay);
+        const targetGroup = grouped.find(g => g.muscle === muscleName);
+        let isNowFullyCompleted = false;
+        if (targetGroup) {
+            isNowFullyCompleted = true;
+            for (let exItem of targetGroup.exercises) {
+                if (!isExerciseCompleted(exItem.originalIndex)) { isNowFullyCompleted = false; break; }
+            }
+        }
+        save();
+        render(() => {
+            if (isNowFullyCompleted && targetGroup) {
+                const groupElement = document.querySelector(`.muscle-group[data-group-muscle="${escapeAttr(muscleName)}"]`);
+                if (groupElement) triggerMegaExplosionAndCollapse(groupElement, muscleName);
+            } else if (isChecked) {
+                const tile = document.querySelector(`.set-tile[data-ex="${exIdx}"][data-set="${setIdx}"]`);
+                if (tile) animateExplosion(tile, true);
+            }
+        });
+    }
+
+    function completeAllExercise(exIdx, totalSetCount) {
+        let changed = false;
+        for (let s = 0; s < totalSetCount; s++) {
+            const key = makeKey(exIdx, s);
+            if (!completedMap.get(key)) { completedMap.set(key, true); changed = true; }
+        }
+        if (changed) {
+            const ex = DATA_RAW[currentDay][exIdx];
+            const muscleName = ex.muscle;
+            const grouped = getGrouped(currentDay);
+            const targetGroup = grouped.find(g => g.muscle === muscleName);
+            let isNowFullyCompleted = false;
+            if (targetGroup) {
+                isNowFullyCompleted = true;
+                for (let exItem of targetGroup.exercises) if (!isExerciseCompleted(exItem.originalIndex)) { isNowFullyCompleted = false; break; }
+            }
+            save();
+            render(() => {
+                if (isNowFullyCompleted && targetGroup) {
+                    const groupElement = document.querySelector(`.muscle-group[data-group-muscle="${escapeAttr(muscleName)}"]`);
+                    if (groupElement) triggerMegaExplosionAndCollapse(groupElement, muscleName);
+                } else {
+                    const card = document.querySelector(`.ex-card`);
+                    if (card) {
+                        const rect = card.getBoundingClientRect();
+                        createExplosionParticles(rect.left + rect.width/2, rect.top + rect.height/2, false);
+                    }
+                }
+            });
+        }
+    }
+
+    function resetCurrentDay() {
+        const prefix = `${currentDay}_`;
+        const keysToDelete = [];
+        for (let key of completedMap.keys()) if (key.startsWith(prefix)) keysToDelete.push(key);
+        for (let key of keysToDelete) completedMap.delete(key);
+        save();
+        render();
+    }
+
+    function setDay(day) { currentDay = day; save(); render(); updateActiveTab(); }
+    
+    function updateActiveTab() {
+        document.querySelectorAll('.day-btn').forEach(btn => {
+            const d = btn.getAttribute('data-day');
+            if ((d === 'mon' && currentDay === 'mon') || (d === 'wed' && currentDay === 'wed') || (d === 'fri' && currentDay === 'fri'))
+                btn.classList.add('active');
+            else btn.classList.remove('active');
+        });
+    }
+    
+    function toggleMuscleGroup(muscleName) {
+        if (!expandedGroups[currentDay]) expandedGroups[currentDay] = {};
+        expandedGroups[currentDay][muscleName] = !expandedGroups[currentDay][muscleName];
+        save();
+        render();
+    }
+
+    function render(callback) {
+        const container = document.getElementById('workoutContainer');
+        if (!container) return;
+        const grouped = getGrouped(currentDay);
+        const rawProgram = DATA_RAW[currentDay];
+        let html = '';
+        
+        for (let group of grouped) {
+            const muscleName = group.muscle;
+            const exercises = group.exercises;
+            const isExpanded = expandedGroups[currentDay]?.[muscleName] === true;
+            const allExercisesDone = isGroupFullyCompleted(group);
+            const completedExCount = group.exercises.filter(ex => isExerciseCompleted(ex.originalIndex)).length;
+            
+            const progressBadge = allExercisesDone ? 
+                `<span class="group-progress completed">✅ ПОЛНОСТЬЮ</span>` : 
+                `<span class="group-progress">📊 ${completedExCount}/${group.exercises.length}</span>`;
+            
+            html += `<div class="muscle-group" data-group-muscle="${escapeAttr(muscleName)}">
+                        <div class="group-header ${!isExpanded ? 'collapsed' : ''}" data-muscle="${escapeAttr(muscleName)}">
+                            <div class="group-title">
+                                <span>💪</span>
+                                <span>${escapeHtml(muscleName)}</span>
+                                <span class="group-badge">${exercises.length} упр</span>
+                                ${progressBadge}
+                            </div>
+                            <div class="group-arrow">▼</div>
+                        </div>
+                        <div class="exercises-container">`;
+            
+            if (isExpanded) {
+                for (let exItem of exercises) {
+                    const globalExIdx = exItem.originalIndex;
+                    const ex = rawProgram[globalExIdx];
+                    if (!ex) continue;
+                    const setsAmount = ex.sets;
+                    const exerciseCompleted = isExerciseCompleted(globalExIdx);
+                    const cardClass = exerciseCompleted ? 'ex-card completed' : 'ex-card';
+                    html += `<div class="${cardClass}">
+                                <div class="ex-title"><h3>${escapeHtml(ex.name)}</h3><div class="muscle-badge">${escapeHtml(ex.muscle)}</div></div>
+                                <div class="sets-grid">`;
+                    for (let s = 0; s < setsAmount; s++) {
+                        const isCompleted = completedMap.get(makeKey(globalExIdx, s)) === true;
+                        const activeTileClass = isCompleted ? 'active-tile' : '';
+                        html += `<div class="set-tile ${activeTileClass}" data-ex="${globalExIdx}" data-set="${s}">
+                                    <div class="set-number">${s+1}/${setsAmount}</div>
+                                    <div class="set-stats">${escapeHtml(ex.desc)}</div>
+                                    <div class="check-symbol">${isCompleted ? '✅' : '⚪'}</div>
+                                </div>`;
+                    }
+                    html += `</div><button class="full-mark" data-complete-ex="${globalExIdx}">⚡ ВСЕ ${setsAmount} ПОДХОДОВ</button></div>`;
+                }
+            } else {
+                let totalSetsInGroup = 0;
+                for (let exItem of exercises) { const orig = rawProgram[exItem.originalIndex]; if (orig) totalSetsInGroup += orig.sets; }
+                html += `<div style="padding: 12px; color: #c6efea; font-size: 0.7rem; text-align: center; background: #1e3a36; border-radius: 24px; margin: 6px 0 10px; border: 1px solid #30e3ca60;">
+                            ${allExercisesDone ? '✨ ВСЯ ГРУППА ГОТОВА! ТАПНИ ДЛЯ ПРОСМОТРА ✨' : `📌 ${exercises.length} упр · ${totalSetsInGroup} подходов · открой группу`}
+                        </div>`;
+            }
+            html += `</div></div>`;
+        }
+        
+        container.innerHTML = html;
+        document.getElementById('completedCount').innerText = getCompletedCountForCurrentDay();
+        document.getElementById('totalCount').innerText = totalSets();
+        if (callback) setTimeout(callback, 20);
+    }
+    
+    function escapeAttr(str) { if (!str) return ''; return str.replace(/[&'"]/g, c => c === '&' ? '&amp;' : (c === "'" ? '&apos;' : '&quot;')); }
+    function escapeHtml(str) { if (!str) return ''; return str.replace(/[&<>]/g, m => m === '&' ? '&amp;' : (m === '<' ? '&lt;' : '&gt;')); }
+
+    function globalClickHandler(e) {
+        const groupHeader = e.target.closest('.group-header');
+        if (groupHeader) {
+            e.preventDefault();
+            let muscle = groupHeader.getAttribute('data-muscle');
+            if (!muscle) {
+                const titleSpan = groupHeader.querySelector('.group-title span:not(.group-badge):not(.group-progress)');
+                if (titleSpan) muscle = titleSpan.innerText.trim();
+            }
+            if (muscle) toggleMuscleGroup(muscle);
+            return;
+        }
+        const tile = e.target.closest('.set-tile');
+        if (tile && tile.hasAttribute('data-ex') && tile.hasAttribute('data-set')) {
+            e.preventDefault();
+            const exIdx = parseInt(tile.getAttribute('data-ex'), 10);
+            const setIdx = parseInt(tile.getAttribute('data-set'), 10);
+            const currentStatus = completedMap.get(makeKey(exIdx, setIdx)) === true;
+            toggleSet(exIdx, setIdx, !currentStatus);
+            return;
+        }
+        const fullBtn = e.target.closest('.full-mark');
+        if (fullBtn && fullBtn.hasAttribute('data-complete-ex')) {
+            e.preventDefault();
+            const exIdx = parseInt(fullBtn.getAttribute('data-complete-ex'), 10);
+            const exObj = DATA_RAW[currentDay]?.[exIdx];
+            if (exObj) completeAllExercise(exIdx, exObj.sets);
+            return;
+        }
+    }
+
+    function attachDelegation() {
+        const container = document.getElementById('workoutContainer');
+        if (container) { container.removeEventListener('click', globalClickHandler); container.addEventListener('click', globalClickHandler); }
+    }
+
+    function init() {
+        load();
+        for (let d of ['mon','wed','fri']) if (!expandedGroups[d]) expandedGroups[d] = {};
+        render();
+        attachDelegation();
+        updateActiveTab();
+        document.querySelectorAll('.day-btn').forEach(btn => {
+            btn.addEventListener('click', () => { 
+                const day = btn.getAttribute('data-day'); 
+                if (day === 'mon') setDay('mon');
+                else if (day === 'wed') setDay('wed');
+                else if (day === 'fri') setDay('fri');
+            });
+        });
+        const resetBtn = document.getElementById('resetDayBtn');
+        if (resetBtn) resetBtn.addEventListener('click', () => { 
+            const name = currentDay === 'mon' ? 'ПН' : (currentDay === 'wed' ? 'СР' : 'ПТ');
+            if (confirm(`Сбросить все подходы за день ${name}?`)) resetCurrentDay(); 
+        });
+    }
+    init();
+</script>
+</body>
+</html>
